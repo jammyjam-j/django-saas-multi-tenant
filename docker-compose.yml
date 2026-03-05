@@ -1,0 +1,99 @@
+version: "3.9"
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: django-saas-multi-tenant-web
+    container_name: saas_web
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      - DJANGO_SETTINGS_MODULE=saas.settings
+      - DATABASE_URL=postgres://saas_user:saas_pass@db:5432/saas_db
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=${DJANGO_SECRET_KEY}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS}
+    volumes:
+      - .:/app
+    command: ["gunicorn", "saas.wsgi:application", "--bind", "0.0.0.0:8000"]
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail http://localhost:8000/health/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+  db:
+    image: postgres:16-alpine
+    container_name: saas_db
+    environment:
+      - POSTGRES_DB=saas_db
+      - POSTGRES_USER=saas_user
+      - POSTGRES_PASSWORD=saas_pass
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U saas_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  redis:
+    image: redis:7-alpine
+    container_name: saas_redis
+    volumes:
+      - redisdata:/data
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: django-saas-multi-tenant-celery
+    container_name: saas_celery_worker
+    depends_on:
+      web:
+        condition: service_started
+      redis:
+        condition: service_started
+    environment:
+      - DJANGO_SETTINGS_MODULE=saas.settings
+      - DATABASE_URL=postgres://saas_user:saas_pass@db:5432/saas_db
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - .:/app
+    command: ["celery", "-A", "saas.celery_app", "worker", "--loglevel=info"]
+    restart: unless-stopped
+  celery_beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: django-saas-multi-tenant-celery-beat
+    container_name: saas_celery_beat
+    depends_on:
+      web:
+        condition: service_started
+      redis:
+        condition: service_started
+    environment:
+      - DJANGO_SETTINGS_MODULE=saas.settings
+      - DATABASE_URL=postgres://saas_user:saas_pass@db:5432/saas_db
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - .:/app
+    command: ["celery", "-A", "saas.celery_app", "beat", "--loglevel=info"]
+    restart: unless-stopped
+volumes:
+  pgdata:
+  redisdata:
+networks:
+  default:
+    driver: bridge
