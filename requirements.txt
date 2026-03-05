@@ -1,0 +1,19 @@
+Django>=4.2,<5.0
+djangorestframework
+django-environ
+gunicorn
+psycopg2-binary
+whitenoise
+corsheaders
+celery[redis]
+redis
+stripe
+python-dotenv
+drf-yasg
+pytest-django
+coverage
+ruff
+black
+isort
+
+# End of requirements.txt
