@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% load static i18n %}
+{% block title %}{% trans "Tenant Dashboard" %} - {{ tenant.name }}{% endblock %}
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-3">{% trans "Welcome to" %} {{ tenant.name }}</h1>
+    {% if messages %}
+        <div class="mt-2 mb-4">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{% trans 'Close' %}"></button>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+    <section id="subscription-info" class="mb-5">
+        <h2>{% trans "Subscription Details" %}</h2>
+        <table class="table table-striped">
+            <tbody>
+                <tr>
+                    <th scope="row">{% trans "Plan" %}</th>
+                    <td>{{ tenant.plan_name }}</td>
+                </tr>
+                <tr>
+                    <th scope="row">{% trans "Status" %}</th>
+                    <td>{% if tenant.is_active %}<span class="badge bg-success">{% trans "Active" %}</span>{% else %}<span class="badge bg-danger">{% trans "Inactive" %}</span>{% endif %}</td>
+                </tr>
+                <tr>
+                    <th scope="row">{% trans "Next Billing Date" %}</th>
+                    <td>{{ tenant.next_billing_date|date:"F j, Y" }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+    <section id="usage-stats" class="mb-5">
+        <h2>{% trans "Usage Statistics" %}</h2>
+        {% if tenant.usage %}
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <div class="card text-center h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">{% trans "Users" %}</h5>
+                            <p class="display-6">{{ tenant.usage.user_count }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="card text-center h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">{% trans "Storage (GB)" %}</h5>
+                            <p class="display-6">{{ tenant.usage.storage_gb }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="card text-center h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">{% trans "API Calls" %}</h5>
+                            <p class="display-6">{{ tenant.usage.api_calls }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <p>{% trans "No usage data available." %}</p>
+        {% endif %}
+    </section>
+    <section id="actions" class="mb-5">
+        <h2>{% trans "Manage Your Account" %}</h2>
+        <div class="d-grid gap-2 d-md-flex justify-content-md-start">
+            <a href="{% url 'billing:subscription_edit' tenant.id %}" class="btn btn-primary me-md-2">{% trans "Update Plan" %}</a>
+            <a href="{% url 'billing:invoice_list' tenant.id %}" class="btn btn-outline-secondary me-md-2">{% trans "View Invoices" %}</a>
+            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#cancelModal">{% trans "Cancel Subscription" %}</button>
+        </div>
+    </section>
+</div>
+
+<div class="modal fade" id="cancelModal" tabindex="-1" aria-labelledby="cancelModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="post" action="{% url 'billing:subscription_cancel' tenant.id %}">
+      {% csrf_token %}
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="cancelModalLabel">{% trans "Confirm Cancellation" %}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% trans 'Close' %}"></button>
+        </div>
+        <div class="modal-body">
+          {% trans "Are you sure you want to cancel your subscription? This action cannot be undone." %}
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "Close" %}</button>
+          <button type="submit" class="btn btn-danger">{% trans "Yes, Cancel" %}</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
